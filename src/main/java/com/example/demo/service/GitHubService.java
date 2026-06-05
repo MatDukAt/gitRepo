@@ -11,7 +11,12 @@ import org.springframework.web.client.RestClient;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 @Service
 public class GitHubService {
@@ -26,25 +31,36 @@ public class GitHubService {
     public List<RepoToDisplay> getNonForkRepos(String username){
         @Nullable
         var allRepos = restClient.get().uri("https://api.github.com/users/{username}/repos", username).retrieve().body(Repository[].class);
-        List<RepoToDisplay> toReturn = new ArrayList<>();
+        //List<RepoToDisplay> toReturn = Collections.synchronizedList(new ArrayList<>());
         if (allRepos == null){
             throw new GitHubException("GitHub user "+username+" does not exist");
         }
-        for (Repository repo : allRepos){
-            var repoToAdd = new RepoToDisplay(repo.name(),repo.owner().login(),new ArrayList<>());
-            if (!repo.fork()){
-                @Nullable
-                Branch[] allBranches = restClient.get().uri("https://api.github.com/repos/{owner}/{repo}/branches",username,repo.name()).retrieve().body(Branch[].class);
-                if (allBranches == null){
-                    throw new GitHubException("Failed to fetch branches of "+repo.name()+" repository");
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()){
+            List<Future<RepoToDisplay>> futures = Arrays.stream(allRepos).filter(repo -> !repo.fork()).
+                    map(repo -> executor.submit(() -> {
+                        var repoToAdd = new RepoToDisplay(repo.name(),repo.owner().login(),new ArrayList<>());
+                        @Nullable
+                        Branch[] allBranches = restClient.get().uri("https://api.github.com/repos/{owner}/{repo}/branches",username,repo.name()).retrieve().body(Branch[].class);
+                        if (allBranches == null){
+                            throw new GitHubException("Failed to fetch branches of "+repo.name()+" repository");
+                        }
+                        for (Branch branch : allBranches){
+                            repoToAdd.branches().add(new BranchToDisplay(branch.name(),branch.commit().sha()));
+                        }
+                        return repoToAdd;
+                    })).toList();
+            List<RepoToDisplay> toReturn = new ArrayList<>();
+
+            for (Future<RepoToDisplay> future : futures) {
+                try {
+                    toReturn.add(future.get());
+                } catch (Exception e) {
+                    throw new GitHubException("Failed to fetch repositories");
                 }
-                for (Branch branch : allBranches){
-                    repoToAdd.branches().add(new BranchToDisplay(branch.name(),branch.commit().sha()));
-                }
-                toReturn.add(repoToAdd);
             }
+            return toReturn;
         }
-        return toReturn;
 
     }
 }
