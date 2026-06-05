@@ -31,7 +31,6 @@ public class GitHubService {
     public List<RepoToDisplay> getNonForkRepos(String username){
         @Nullable
         var allRepos = restClient.get().uri("https://api.github.com/users/{username}/repos", username).retrieve().body(Repository[].class);
-        //List<RepoToDisplay> toReturn = Collections.synchronizedList(new ArrayList<>());
         if (allRepos == null){
             throw new GitHubException("GitHub user "+username+" does not exist");
         }
