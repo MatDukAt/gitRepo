@@ -20,7 +20,7 @@ public class GitHubController {
 
     @GetMapping("/repos")
     public ResponseEntity<List<RepoToDisplay>> getUserRepositories(@RequestParam String username, HttpServletRequest request){
-        List<RepoToDisplay> repos = gitHubService.getNonForkRepos(username);
+        List<RepoToDisplay> repos = gitHubService.getNonForkRepos(username,request);
         return ResponseEntity.ok(repos);
     }
 
