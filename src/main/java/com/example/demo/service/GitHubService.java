@@ -12,15 +12,15 @@ import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 @Service
 public class GitHubService {
 
+
+    private static final String API_URL = "https://api.github.com/";
     private final RestClient restClient;
 
     public GitHubService(RestClient restClient){
@@ -30,7 +30,7 @@ public class GitHubService {
 
     public List<RepoToDisplay> getNonForkRepos(String username){
         @Nullable
-        var allRepos = restClient.get().uri("https://api.github.com/users/{username}/repos", username).retrieve().body(Repository[].class);
+        var allRepos = restClient.get().uri(API_URL+"users/{username}/repos", username).retrieve().body(Repository[].class);
         if (allRepos == null){
             throw new GitHubException("GitHub user "+username+" does not exist");
         }
@@ -40,7 +40,7 @@ public class GitHubService {
                     map(repo -> executor.submit(() -> {
                         var repoToAdd = new RepoToDisplay(repo.name(),repo.owner().login(),new ArrayList<>());
                         @Nullable
-                        Branch[] allBranches = restClient.get().uri("https://api.github.com/repos/{owner}/{repo}/branches",username,repo.name()).retrieve().body(Branch[].class);
+                        Branch[] allBranches = restClient.get().uri(API_URL+"repos/{owner}/{repo}/branches",username,repo.name()).retrieve().body(Branch[].class);
                         if (allBranches == null){
                             throw new GitHubException("Failed to fetch branches of "+repo.name()+" repository");
                         }
