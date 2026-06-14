@@ -35,7 +35,7 @@ public class GitHubService {
 
         Consumer<HttpHeaders> headers = getHeaders(request);
 
-        @Nullable
+
         var allRepos = restClient.get().uri(API_URL+"users/{username}/repos", username).headers(headers).retrieve().body(Repository[].class);
 
         if (allRepos == null){
@@ -47,7 +47,7 @@ public class GitHubService {
             List<Future<RepoToDisplay>> futures = Arrays.stream(allRepos).filter(repo -> !repo.fork()).
                     map(repo -> executor.submit(() -> {
                         var repoToAdd = new RepoToDisplay(repo.name(),repo.owner().login(),new ArrayList<>());
-                        @Nullable
+
                         Branch[] allBranches = restClient.get().uri(API_URL+"repos/{owner}/{repo}/branches",username,repo.name()).headers(headers).retrieve().body(Branch[].class);
 
                         if (allBranches == null){
@@ -64,7 +64,6 @@ public class GitHubService {
                 try {
                     toReturn.add(future.get());
                 } catch (Exception e) {
-                    e.printStackTrace();
                     throw new GitHubException("Failed to fetch repositories");
                 }
             }
